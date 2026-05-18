@@ -2,23 +2,53 @@
 
 namespace justinholtweb\spectacles\services;
 
-use Craft;
 use craft\elements\Asset;
+use justinholtweb\spectacles\models\Settings;
 use justinholtweb\spectacles\Plugin;
 use justinholtweb\spectacles\records\ImageMetadata;
+use justinholtweb\spectacles\services\similarity\PgvectorBackend;
+use justinholtweb\spectacles\services\similarity\ScanBackend;
+use justinholtweb\spectacles\services\similarity\SimilarityBackend;
 use yii\base\Component;
 
 /**
- * Computes similarity between a query (asset or arbitrary text/image) and
- * stored metadata records. Cosine similarity is computed in PHP — this is
- * fine up to a few thousand assets. For larger libraries, swap this service
- * for a pgvector or Pinecone-backed implementation.
+ * Similarity ranking. Resolves a {@see SimilarityBackend} based on settings
+ * + DB capability and delegates search/index calls.
  */
 class Similarity extends Component
 {
+    private ?SimilarityBackend $backend = null;
+
+    public function backend(): SimilarityBackend
+    {
+        if ($this->backend !== null) {
+            return $this->backend;
+        }
+
+        $settings = Plugin::getInstance()->getSettings();
+        $pref = $settings->vectorIndex;
+
+        if ($pref === Settings::INDEX_PGVECTOR || $pref === Settings::INDEX_AUTO) {
+            $pgvector = new PgvectorBackend();
+            if ($pgvector->isAvailable()) {
+                return $this->backend = $pgvector;
+            }
+        }
+
+        return $this->backend = new ScanBackend();
+    }
+
+    public function indexAsset(int $assetId, array $vector, string $model): void
+    {
+        $this->backend()->index($assetId, $vector, $model);
+    }
+
+    public function deleteForAsset(int $assetId): void
+    {
+        $this->backend()->deleteForAsset($assetId);
+    }
+
     /**
-     * Find assets similar to a stored asset.
-     *
      * @return array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
      */
     public function similarToAsset(Asset $asset, ?int $limit = null): array
@@ -27,26 +57,20 @@ class Similarity extends Component
         if (!$metadata || !$metadata->embedding) {
             return [];
         }
-
         return $this->similarToVector($metadata->embedding, $limit, excludeAssetIds: [$asset->id]);
     }
 
     /**
-     * Find assets similar to a free-form text query.
-     *
      * @return array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
      */
     public function similarToText(string $text, ?int $limit = null): array
     {
         $vision = Plugin::getInstance()->vision;
-        $embedded = $vision->embedText($text);
-        return $this->similarToVector($embedded['vector'], $limit);
+        $result = $vision->embedText($text);
+        return $this->similarToVector($result->vector, $limit);
     }
 
     /**
-     * Find assets similar to a raw uploaded image. Runs full vision +
-     * embedding on the image first, then ranks.
-     *
      * @return array{
      *     analysis: \justinholtweb\spectacles\services\vision\AnalysisResult,
      *     results: array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
@@ -57,12 +81,10 @@ class Similarity extends Component
         $vision = Plugin::getInstance()->vision;
         $analysis = $vision->analyze($imageData, $mimeType);
 
-        $results = [];
-        $embeddable = $analysis->embeddableText();
-        if ($embeddable !== '') {
-            $embedded = $vision->embedText($embeddable);
-            $results = $this->similarToVector($embedded['vector'], $limit);
-        }
+        $embedding = $vision->embedForImage($imageData, $mimeType, $analysis);
+        $results = $embedding !== null
+            ? $this->similarToVector($embedding->vector, $limit)
+            : [];
 
         return ['analysis' => $analysis, 'results' => $results];
     }
@@ -78,75 +100,28 @@ class Similarity extends Component
         $limit ??= $settings->defaultResultLimit;
         $minScore = $settings->minSimilarityScore;
 
-        $records = ImageMetadata::find()
-            ->where(['not', ['embedding' => null]])
-            ->all();
-
-        $scored = [];
-        foreach ($records as $record) {
-            if (in_array($record->assetId, $excludeAssetIds, true)) {
-                continue;
-            }
-            if (!is_array($record->embedding) || !$record->embedding) {
-                continue;
-            }
-            $score = $this->cosine($vector, $record->embedding);
-            if ($score < $minScore) {
-                continue;
-            }
-            $scored[] = ['record' => $record, 'score' => $score];
-        }
-
-        usort($scored, fn(array $a, array $b): int => $b['score'] <=> $a['score']);
-        $scored = array_slice($scored, 0, $limit);
-
-        $assetIds = array_map(fn(array $row): int => $row['record']->assetId, $scored);
-        if (!$assetIds) {
+        $hits = $this->backend()->search($vector, $limit, $minScore, $excludeAssetIds);
+        if (!$hits) {
             return [];
         }
 
+        $assetIds = array_map(fn(array $h): int => $h['assetId'], $hits);
         $assets = Asset::find()->id($assetIds)->indexBy('id')->all();
+        $metadata = ImageMetadata::find()->where(['assetId' => $assetIds])->indexBy('assetId')->all();
 
         $out = [];
-        foreach ($scored as $row) {
-            $asset = $assets[$row['record']->assetId] ?? null;
-            if (!$asset) {
+        foreach ($hits as $hit) {
+            $asset = $assets[$hit['assetId']] ?? null;
+            $meta = $metadata[$hit['assetId']] ?? null;
+            if (!$asset || !$meta) {
                 continue;
             }
             $out[] = [
                 'asset' => $asset,
-                'score' => round($row['score'], 4),
-                'metadata' => $row['record'],
+                'score' => round($hit['score'], 4),
+                'metadata' => $meta,
             ];
         }
-
         return $out;
-    }
-
-    /**
-     * @param float[] $a
-     * @param float[] $b
-     */
-    private function cosine(array $a, array $b): float
-    {
-        $len = min(count($a), count($b));
-        if ($len === 0) {
-            return 0.0;
-        }
-
-        $dot = 0.0;
-        $magA = 0.0;
-        $magB = 0.0;
-        for ($i = 0; $i < $len; $i++) {
-            $dot += $a[$i] * $b[$i];
-            $magA += $a[$i] * $a[$i];
-            $magB += $b[$i] * $b[$i];
-        }
-
-        if ($magA === 0.0 || $magB === 0.0) {
-            return 0.0;
-        }
-
-        return $dot / (sqrt($magA) * sqrt($magB));
     }
 }

@@ -51,15 +51,14 @@ class Metadata extends Component
 
         $embedding = null;
         $embeddingModel = null;
-        $embeddable = $analysis->embeddableText();
-        if ($embeddable !== '') {
-            try {
-                $embedded = $vision->embedText($embeddable);
-                $embedding = $embedded['vector'];
-                $embeddingModel = $embedded['model'];
-            } catch (Throwable $e) {
-                Craft::warning("Spectacles: embedding failed for asset {$asset->id}: " . $e->getMessage(), __METHOD__);
+        try {
+            $result = $vision->embedForImage($imageData, $mimeType, $analysis);
+            if ($result !== null) {
+                $embedding = $result->vector;
+                $embeddingModel = $result->model;
             }
+        } catch (Throwable $e) {
+            Craft::warning("Spectacles: embedding failed for asset {$asset->id}: " . $e->getMessage(), __METHOD__);
         }
 
         return $this->store($asset->id, $analysis, $embedding, $embeddingModel);
@@ -90,11 +89,24 @@ class Metadata extends Component
             );
         }
 
+        if ($embedding !== null && $embeddingModel !== null) {
+            try {
+                Plugin::getInstance()->similarity->indexAsset($assetId, $embedding, $embeddingModel);
+            } catch (Throwable $e) {
+                Craft::warning("Spectacles: vector index update failed for asset {$assetId}: " . $e->getMessage(), __METHOD__);
+            }
+        }
+
         return $record;
     }
 
     public function deleteForAsset(int $assetId): void
     {
         ImageMetadata::deleteAll(['assetId' => $assetId]);
+        try {
+            Plugin::getInstance()->similarity->deleteForAsset($assetId);
+        } catch (Throwable $e) {
+            Craft::warning("Spectacles: vector index delete failed for asset {$assetId}: " . $e->getMessage(), __METHOD__);
+        }
     }
 }

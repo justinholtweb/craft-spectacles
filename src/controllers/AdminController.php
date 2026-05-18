@@ -7,6 +7,7 @@ use craft\elements\Asset;
 use craft\web\Controller;
 use justinholtweb\spectacles\jobs\AnalyzeAsset;
 use justinholtweb\spectacles\Plugin;
+use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
 class AdminController extends Controller
@@ -42,5 +43,24 @@ class AdminController extends Controller
         );
 
         return $this->redirect('settings/plugins/spectacles');
+    }
+
+    /**
+     * Queue an analysis job for a single asset, then return to the asset
+     * edit page. Used by the "Analyze now" button in the sidebar.
+     */
+    public function actionAnalyzeAsset(): Response
+    {
+        $assetId = (int)Craft::$app->request->getRequiredParam('assetId');
+        $asset = Asset::find()->id($assetId)->one();
+        if (!$asset) {
+            throw new NotFoundHttpException('Asset not found.');
+        }
+        $this->requirePermission("viewAssets:{$asset->getVolume()->uid}");
+
+        Craft::$app->queue->push(new AnalyzeAsset(['assetId' => $asset->id]));
+        Craft::$app->session->setNotice(Craft::t('spectacles', 'Analysis queued.'));
+
+        return $this->redirect($asset->getCpEditUrl() ?: 'assets');
     }
 }

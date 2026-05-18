@@ -2,21 +2,32 @@
     "name": "justinholtweb/craft-spectacles",
     "description": "Computer-vision-powered similar-image search for Craft CMS assets.",
     "type": "craft-plugin",
-    "license": "MIT",
-    "support": {
-        "email": "justin@justinholt.com",
-        "issues": "https://github.com/justinholtweb/craft-spectacles/issues",
-        "source": "https://github.com/justinholtweb/craft-spectacles",
-        "docs": "https://github.com/justinholtweb/craft-spectacles#readme"
-    },
+    "version": "5.0.0",
+    "keywords": [
+        "craftcms",
+        "cms",
+        "craft",
+        "computer vision",
+        "image search",
+        "similarity",
+        "embeddings",
+        "ai"
+    ],
+    "license": "proprietary",
     "authors": [
         {
             "name": "Justin Holt",
-            "email": "justin@justinholt.com"
+            "homepage": "https://justinholtweb.com"
         }
     ],
+    "support": {
+        "email": "justin@justinholt.com",
+        "issues": "https://craft-spectacles.com",
+        "source": "https://craft-spectacles.com",
+        "docs": "https://craft-spectacles.com"
+    },
     "require": {
-        "php": ">=8.2",
+        "php": "^8.2",
         "craftcms/cms": "^5.0.0"
     },
     "autoload": {
@@ -27,8 +38,12 @@
     "extra": {
         "name": "Spectacles",
         "handle": "spectacles",
+        "hasCpSettings": true,
+        "hasCpSection": false,
+        "class": "justinholtweb\\spectacles\\Plugin",
         "developer": "Justin Holt",
-        "documentationUrl": "https://github.com/justinholtweb/craft-spectacles#readme",
-        "class": "justinholtweb\\spectacles\\Plugin"
+        "developerUrl": "https://justinholtweb.com",
+        "documentationUrl": "https://craft-spectacles.com",
+        "description": "Computer-vision-powered similar-image search for Craft CMS assets."
     }
 }

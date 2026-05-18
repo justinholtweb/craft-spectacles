@@ -1,14 +1,50 @@
 {% import "_includes/forms.twig" as forms %}
 
+<h2>{{ 'Quick presets'|t('spectacles') }}</h2>
+<p class="light">{{ 'One-click defaults — you can still tweak afterwards. Remember to save your API keys.'|t('spectacles') }}</p>
+
+<div class="btngroup" role="group">
+    <button type="button" class="btn" data-spectacles-preset="quality">{{ 'Best quality (Claude + Voyage)'|t('spectacles') }}</button>
+    <button type="button" class="btn" data-spectacles-preset="balanced">{{ 'Balanced (OpenAI)'|t('spectacles') }}</button>
+    <button type="button" class="btn" data-spectacles-preset="cheapest">{{ 'Cheapest hosted (Gemini)'|t('spectacles') }}</button>
+    <button type="button" class="btn" data-spectacles-preset="local">{{ 'Self-hosted (Ollama)'|t('spectacles') }}</button>
+</div>
+
+<hr>
+<h2>{{ 'Vision'|t('spectacles') }}</h2>
+<p class="light">{{ 'Generates a description, tags, objects, and colors for each image.'|t('spectacles') }}</p>
+
 {{ forms.selectField({
     label: 'Vision Provider'|t('spectacles'),
     id: 'visionProvider',
     name: 'visionProvider',
     options: [
-        { label: 'OpenAI', value: 'openai' },
+        { label: 'OpenAI (GPT-4o family)', value: 'openai' },
+        { label: 'Anthropic (Claude)', value: 'anthropic' },
+        { label: 'Google Gemini', value: 'gemini' },
+        { label: 'Ollama (self-hosted)', value: 'ollama' },
     ],
     value: settings.visionProvider,
 }) }}
+
+<h3>{{ 'Embedding'|t('spectacles') }}</h3>
+<p class="light">{{ 'Generates the vector that powers similarity search. Voyage embeds the image directly (multimodal); the others embed the text description.'|t('spectacles') }}</p>
+
+{{ forms.selectField({
+    label: 'Embedding Provider'|t('spectacles'),
+    id: 'embeddingProvider',
+    name: 'embeddingProvider',
+    options: [
+        { label: 'OpenAI (text)', value: 'openai' },
+        { label: 'Google Gemini (text)', value: 'gemini' },
+        { label: 'Voyage AI (multimodal — recommended)', value: 'voyage' },
+        { label: 'Ollama (self-hosted, text)', value: 'ollama' },
+    ],
+    value: settings.embeddingProvider,
+}) }}
+
+<hr>
+<h2>{{ 'OpenAI'|t('spectacles') }}</h2>
 
 {{ forms.autosuggestField({
     label: 'OpenAI API Key'|t('spectacles'),
@@ -20,20 +56,135 @@
 }) }}
 
 {{ forms.textField({
-    label: 'OpenAI Vision Model'|t('spectacles'),
+    label: 'Vision Model'|t('spectacles'),
+    instructions: 'e.g. gpt-4o-mini, gpt-4o, gpt-4.1-mini'|t('spectacles'),
     id: 'openaiVisionModel',
     name: 'openaiVisionModel',
     value: settings.openaiVisionModel,
 }) }}
 
 {{ forms.textField({
-    label: 'OpenAI Embedding Model'|t('spectacles'),
+    label: 'Embedding Model'|t('spectacles'),
+    instructions: 'e.g. text-embedding-3-small, text-embedding-3-large'|t('spectacles'),
     id: 'openaiEmbeddingModel',
     name: 'openaiEmbeddingModel',
     value: settings.openaiEmbeddingModel,
 }) }}
 
 <hr>
+<h2>{{ 'Anthropic'|t('spectacles') }}</h2>
+
+{{ forms.autosuggestField({
+    label: 'Anthropic API Key'|t('spectacles'),
+    instructions: 'Use an environment variable like $ANTHROPIC_API_KEY.'|t('spectacles'),
+    id: 'anthropicApiKey',
+    name: 'anthropicApiKey',
+    value: settings.anthropicApiKey,
+    suggestEnvVars: true,
+}) }}
+
+{{ forms.textField({
+    label: 'Vision Model'|t('spectacles'),
+    instructions: 'e.g. claude-sonnet-4-6, claude-opus-4-7, claude-haiku-4-5-20251001'|t('spectacles'),
+    id: 'anthropicVisionModel',
+    name: 'anthropicVisionModel',
+    value: settings.anthropicVisionModel,
+}) }}
+
+<hr>
+<h2>{{ 'Google Gemini'|t('spectacles') }}</h2>
+
+{{ forms.autosuggestField({
+    label: 'Gemini API Key'|t('spectacles'),
+    instructions: 'Use an environment variable like $GEMINI_API_KEY.'|t('spectacles'),
+    id: 'geminiApiKey',
+    name: 'geminiApiKey',
+    value: settings.geminiApiKey,
+    suggestEnvVars: true,
+}) }}
+
+{{ forms.textField({
+    label: 'Vision Model'|t('spectacles'),
+    instructions: 'e.g. gemini-2.5-flash, gemini-2.5-pro'|t('spectacles'),
+    id: 'geminiVisionModel',
+    name: 'geminiVisionModel',
+    value: settings.geminiVisionModel,
+}) }}
+
+{{ forms.textField({
+    label: 'Embedding Model'|t('spectacles'),
+    instructions: 'e.g. text-embedding-004'|t('spectacles'),
+    id: 'geminiEmbeddingModel',
+    name: 'geminiEmbeddingModel',
+    value: settings.geminiEmbeddingModel,
+}) }}
+
+<hr>
+<h2>{{ 'Voyage AI'|t('spectacles') }}</h2>
+
+{{ forms.autosuggestField({
+    label: 'Voyage API Key'|t('spectacles'),
+    instructions: 'Use an environment variable like $VOYAGE_API_KEY.'|t('spectacles'),
+    id: 'voyageApiKey',
+    name: 'voyageApiKey',
+    value: settings.voyageApiKey,
+    suggestEnvVars: true,
+}) }}
+
+{{ forms.textField({
+    label: 'Embedding Model'|t('spectacles'),
+    instructions: 'e.g. voyage-multimodal-3'|t('spectacles'),
+    id: 'voyageEmbeddingModel',
+    name: 'voyageEmbeddingModel',
+    value: settings.voyageEmbeddingModel,
+}) }}
+
+<hr>
+<h2>{{ 'Ollama (self-hosted)'|t('spectacles') }}</h2>
+
+{{ forms.autosuggestField({
+    label: 'Ollama Base URL'|t('spectacles'),
+    instructions: 'Default http://localhost:11434. Use $OLLAMA_BASE_URL for environments.'|t('spectacles'),
+    id: 'ollamaBaseUrl',
+    name: 'ollamaBaseUrl',
+    value: settings.ollamaBaseUrl,
+    suggestEnvVars: true,
+}) }}
+
+{{ forms.textField({
+    label: 'Vision Model'|t('spectacles'),
+    instructions: 'e.g. llava, llama3.2-vision, bakllava'|t('spectacles'),
+    id: 'ollamaVisionModel',
+    name: 'ollamaVisionModel',
+    value: settings.ollamaVisionModel,
+}) }}
+
+{{ forms.textField({
+    label: 'Embedding Model'|t('spectacles'),
+    instructions: 'e.g. nomic-embed-text, mxbai-embed-large'|t('spectacles'),
+    id: 'ollamaEmbeddingModel',
+    name: 'ollamaEmbeddingModel',
+    value: settings.ollamaEmbeddingModel,
+}) }}
+
+<hr>
+<h2>{{ 'Vector index'|t('spectacles') }}</h2>
+<p class="light">{{ 'pgvector is auto-detected on Postgres when the extension is installed; otherwise the JSON scan is used.'|t('spectacles') }}</p>
+
+{{ forms.selectField({
+    label: 'Backend'|t('spectacles'),
+    id: 'vectorIndex',
+    name: 'vectorIndex',
+    options: [
+        { label: 'Auto (pgvector if available, otherwise scan)', value: 'auto' },
+        { label: 'PHP scan (works everywhere)', value: 'scan' },
+        { label: 'pgvector (Postgres + extension required)', value: 'pgvector' },
+    ],
+    value: settings.vectorIndex,
+}) }}
+
+<hr>
+<h2>{{ 'Behavior'|t('spectacles') }}</h2>
 
 {{ forms.lightswitchField({
     label: 'Auto-analyze on upload'|t('spectacles'),
@@ -66,13 +217,11 @@
 }) }}
 
 {{ forms.textField({
-    label: 'Minimum similarity score (0-1)'|t('spectacles'),
+    label: 'Minimum similarity score (0–1)'|t('spectacles'),
     id: 'minSimilarityScore',
     name: 'minSimilarityScore',
     value: settings.minSimilarityScore,
 }) }}
-
-<hr>
 
 {{ forms.lightswitchField({
     label: 'Allow public visitor uploads'|t('spectacles'),
@@ -91,7 +240,53 @@
 }) }}
 
 <hr>
-
-<a class="btn" href="{{ actionUrl('spectacles/admin/reindex') }}" data-confirm="{{ 'Queue analysis for every image in the configured volumes?'|t('spectacles') }}">
+<a class="btn" href="{{ actionUrl('spectacles/admin/reindex') }}" data-confirm="{{ 'Queue analysis for every image in the configured volumes? Switching providers requires a re-index because vector dimensions differ.'|t('spectacles') }}">
     {{ 'Re-index all images'|t('spectacles') }}
 </a>
+
+<script>
+(function () {
+    const presets = {
+        quality: {
+            visionProvider: 'anthropic',
+            embeddingProvider: 'voyage',
+            anthropicVisionModel: 'claude-sonnet-4-6',
+            voyageEmbeddingModel: 'voyage-multimodal-3',
+        },
+        balanced: {
+            visionProvider: 'openai',
+            embeddingProvider: 'openai',
+            openaiVisionModel: 'gpt-4o-mini',
+            openaiEmbeddingModel: 'text-embedding-3-small',
+        },
+        cheapest: {
+            visionProvider: 'gemini',
+            embeddingProvider: 'gemini',
+            geminiVisionModel: 'gemini-2.5-flash',
+            geminiEmbeddingModel: 'text-embedding-004',
+        },
+        local: {
+            visionProvider: 'ollama',
+            embeddingProvider: 'ollama',
+            ollamaVisionModel: 'llava',
+            ollamaEmbeddingModel: 'nomic-embed-text',
+        },
+    };
+
+    function applyPreset(preset) {
+        for (const [name, value] of Object.entries(preset)) {
+            const field = document.querySelector(`[name="settings[${name}]"]`);
+            if (!field) continue;
+            field.value = value;
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    document.querySelectorAll('[data-spectacles-preset]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const preset = presets[btn.dataset.spectaclesPreset];
+            if (preset) applyPreset(preset);
+        });
+    });
+})();
+</script>

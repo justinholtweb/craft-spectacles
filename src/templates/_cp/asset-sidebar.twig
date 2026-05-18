@@ -1,0 +1,66 @@
+{# Rendered into the asset edit page sidebar via Element::EVENT_DEFINE_SIDEBAR_HTML #}
+
+<fieldset class="meta read-only" data-spectacles-sidebar>
+    <legend class="h6">{{ 'Spectacles'|t('spectacles') }}</legend>
+
+    {% if metadata is null %}
+        <div class="data">
+            <div class="heading"><span>{{ 'Status'|t('spectacles') }}</span></div>
+            <div class="value">
+                <p class="light">{{ 'Not analyzed yet.'|t('spectacles') }}</p>
+                <a class="btn small" href="{{ actionUrl('spectacles/admin/analyze-asset', { assetId: asset.id }) }}">
+                    {{ 'Analyze now'|t('spectacles') }}
+                </a>
+            </div>
+        </div>
+    {% else %}
+        {% if metadata.description %}
+            <div class="data">
+                <div class="heading"><span>{{ 'Description'|t('spectacles') }}</span></div>
+                <div class="value"><p>{{ metadata.description }}</p></div>
+            </div>
+        {% endif %}
+
+        {% if metadata.tags %}
+            <div class="data">
+                <div class="heading"><span>{{ 'Tags'|t('spectacles') }}</span></div>
+                <div class="value">
+                    {% for tag in metadata.tags %}<span class="token">{{ tag }}</span> {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if similar|length %}
+            <div class="data">
+                <div class="heading"><span>{{ 'Similar images'|t('spectacles') }}</span></div>
+                <div class="value">
+                    <ul class="spectacles-similar">
+                        {% for row in similar %}
+                            <li>
+                                <a href="{{ row.asset.cpEditUrl }}" title="{{ '%s (score: %s)'|format(row.asset.title, row.score) }}">
+                                    <img src="{{ row.asset.url({ width: 80, height: 80, mode: 'crop' }) }}" alt="{{ row.asset.title }}" width="40" height="40">
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="light"><small>{{ 'Backend: %s · Model: %s'|format(backend, metadata.embeddingModel ?? '—') }}</small></p>
+                </div>
+            </div>
+        {% else %}
+            <div class="data">
+                <div class="heading"><span>{{ 'Similar images'|t('spectacles') }}</span></div>
+                <div class="value"><p class="light">{{ 'No matches above the similarity threshold.'|t('spectacles') }}</p></div>
+            </div>
+        {% endif %}
+
+        <div class="data">
+            <div class="heading"><span>{{ 'Last analyzed'|t('spectacles') }}</span></div>
+            <div class="value">{{ metadata.analyzedAt ? metadata.analyzedAt|datetime('short') : '—' }}</div>
+        </div>
+    {% endif %}
+</fieldset>
+
+<style>
+    .spectacles-similar { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 0; }
+    .spectacles-similar li img { display: block; width: 40px; height: 40px; border-radius: 3px; object-fit: cover; }
+</style>
