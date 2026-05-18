@@ -1,0 +1,97 @@
+{% import "_includes/forms.twig" as forms %}
+
+{{ forms.selectField({
+    label: 'Vision Provider'|t('spectacles'),
+    id: 'visionProvider',
+    name: 'visionProvider',
+    options: [
+        { label: 'OpenAI', value: 'openai' },
+    ],
+    value: settings.visionProvider,
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'OpenAI API Key'|t('spectacles'),
+    instructions: 'Use an environment variable like $OPENAI_API_KEY.'|t('spectacles'),
+    id: 'openaiApiKey',
+    name: 'openaiApiKey',
+    value: settings.openaiApiKey,
+    suggestEnvVars: true,
+}) }}
+
+{{ forms.textField({
+    label: 'OpenAI Vision Model'|t('spectacles'),
+    id: 'openaiVisionModel',
+    name: 'openaiVisionModel',
+    value: settings.openaiVisionModel,
+}) }}
+
+{{ forms.textField({
+    label: 'OpenAI Embedding Model'|t('spectacles'),
+    id: 'openaiEmbeddingModel',
+    name: 'openaiEmbeddingModel',
+    value: settings.openaiEmbeddingModel,
+}) }}
+
+<hr>
+
+{{ forms.lightswitchField({
+    label: 'Auto-analyze on upload'|t('spectacles'),
+    id: 'autoAnalyzeOnUpload',
+    name: 'autoAnalyzeOnUpload',
+    on: settings.autoAnalyzeOnUpload,
+}) }}
+
+{% set volumeOptions = [] %}
+{% for volume in craft.app.volumes.allVolumes %}
+    {% set volumeOptions = volumeOptions|merge([{ label: volume.name, value: volume.uid }]) %}
+{% endfor %}
+
+{{ forms.checkboxSelectField({
+    label: 'Volumes to analyze'|t('spectacles'),
+    instructions: 'Leave empty to analyze all volumes.'|t('spectacles'),
+    id: 'volumeUids',
+    name: 'volumeUids',
+    options: volumeOptions,
+    values: settings.volumeUids,
+    showAllOption: false,
+}) }}
+
+{{ forms.textField({
+    label: 'Default result limit'|t('spectacles'),
+    id: 'defaultResultLimit',
+    name: 'defaultResultLimit',
+    type: 'number',
+    value: settings.defaultResultLimit,
+}) }}
+
+{{ forms.textField({
+    label: 'Minimum similarity score (0-1)'|t('spectacles'),
+    id: 'minSimilarityScore',
+    name: 'minSimilarityScore',
+    value: settings.minSimilarityScore,
+}) }}
+
+<hr>
+
+{{ forms.lightswitchField({
+    label: 'Allow public visitor uploads'|t('spectacles'),
+    instructions: 'Exposes POST /spectacles/search.'|t('spectacles'),
+    id: 'allowPublicSearch',
+    name: 'allowPublicSearch',
+    on: settings.allowPublicSearch,
+}) }}
+
+{{ forms.textField({
+    label: 'Max visitor upload (KB)'|t('spectacles'),
+    id: 'maxVisitorUploadKb',
+    name: 'maxVisitorUploadKb',
+    type: 'number',
+    value: settings.maxVisitorUploadKb,
+}) }}
+
+<hr>
+
+<a class="btn" href="{{ actionUrl('spectacles/admin/reindex') }}" data-confirm="{{ 'Queue analysis for every image in the configured volumes?'|t('spectacles') }}">
+    {{ 'Re-index all images'|t('spectacles') }}
+</a>

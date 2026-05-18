@@ -1,0 +1,75 @@
+{# Drop into a frontend template:  {% include 'spectacles/_partials/upload-form' %} #}
+
+<form id="spectacles-search" enctype="multipart/form-data">
+    <label>
+        <span>Upload an image to find similar ones</span>
+        <input type="file" name="image" accept="image/*" required>
+    </label>
+    <button type="submit">Find similar</button>
+</form>
+
+<div id="spectacles-results" hidden>
+    <h3>Description</h3>
+    <p data-spectacles-description></p>
+    <h3>Similar images</h3>
+    <ul data-spectacles-results></ul>
+</div>
+
+<script>
+(function () {
+    const form = document.getElementById('spectacles-search');
+    const wrap = document.getElementById('spectacles-results');
+    const desc = wrap.querySelector('[data-spectacles-description]');
+    const list = wrap.querySelector('[data-spectacles-results]');
+
+    function renderResult(result) {
+        const li = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = result.url || '#';
+
+        const img = document.createElement('img');
+        img.src = result.thumbUrl || '';
+        img.alt = result.title || '';
+        link.appendChild(img);
+
+        const meta = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = result.title || result.filename || '';
+        meta.appendChild(title);
+
+        const score = document.createElement('small');
+        score.textContent = ' score: ' + result.score;
+        meta.appendChild(score);
+
+        link.appendChild(meta);
+        li.appendChild(link);
+        return li;
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        list.replaceChildren();
+        desc.textContent = 'Analyzing…';
+        wrap.hidden = false;
+
+        const formData = new FormData(form);
+        const response = await fetch('/spectacles/search', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            desc.textContent = 'Search failed.';
+            return;
+        }
+
+        const data = await response.json();
+        desc.textContent = (data.analysis && data.analysis.description) || '';
+
+        for (const result of data.results || []) {
+            list.appendChild(renderResult(result));
+        }
+    });
+})();
+</script>
