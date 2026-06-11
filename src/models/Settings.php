@@ -65,6 +65,8 @@ class Settings extends Model
     public float $minSimilarityScore = 0.5;
     public int $maxVisitorUploadKb = 8192;
     public bool $allowPublicSearch = true;
+    public int $publicSearchRateLimit = 10;
+    public int $publicSearchRateWindow = 60;
 
     public function rules(): array
     {
@@ -83,7 +85,8 @@ class Settings extends Model
                 'openaiApiKey', 'anthropicApiKey', 'geminiApiKey', 'voyageApiKey',
             ], 'string'],
             [['autoAnalyzeOnUpload', 'allowPublicSearch'], 'boolean'],
-            [['defaultResultLimit', 'maxVisitorUploadKb'], 'integer', 'min' => 1],
+            [['defaultResultLimit', 'maxVisitorUploadKb', 'publicSearchRateWindow'], 'integer', 'min' => 1],
+            [['publicSearchRateLimit'], 'integer', 'min' => 0],
             [['minSimilarityScore'], 'number', 'min' => 0, 'max' => 1],
             [['volumeUids'], 'each', 'rule' => ['string']],
         ];

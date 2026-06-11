@@ -1,5 +1,37 @@
 # Changelog
 
+## 5.0.0 - 2026-06-11
+
+First public release. The version is aligned with the Craft 5 major version the
+plugin targets, superseding the internal 1.x line.
+
+### Added
+- Per-IP rate limiting on the public search endpoints, configurable via the new
+  `publicSearchRateLimit` and `publicSearchRateWindow` settings (each request
+  can trigger a paid vision/embedding call). Set the limit to 0 to disable.
+
+### Changed
+- Auto-analyze now runs only on a brand-new upload or a file replacement. It no
+  longer re-runs on unrelated edits (title, focal point, moves), drafts,
+  revisions, or the duplicate saves that multi-site propagation fires —
+  eliminating redundant paid API calls.
+- `GET /spectacles/similar/<assetId>` now respects the "Allow public visitor
+  uploads" setting, and a visitor-supplied `limit` is clamped to 100.
+
+### Fixed
+- The plugin settings page is now reachable. A `getSettingsResponse()` override
+  redirected the settings URL to itself, causing an infinite redirect loop
+  (`ERR_TOO_MANY_REDIRECTS`); the default Craft behavior renders the settings
+  template directly.
+- pgvector search no longer errors when the vector table contains mixed
+  embedding dimensions (e.g. mid-provider-switch); mismatched-dimension rows
+  are skipped, matching the scan backend.
+
+### Removed
+- Dead `Metadata::deleteForAsset()`. Asset deletions are handled by the
+  database's `ON DELETE CASCADE`, which correctly preserves metadata across
+  soft-delete/restore.
+
 ## 1.1.0 - 2026-05-07
 
 ### Added

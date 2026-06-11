@@ -39,9 +39,11 @@ class m260507_120000_PgvectorSupport extends Migration
         }
 
         // Use raw SQL — Yii's schema builder does not know the vector type.
-        // Dimension is unconstrained so any provider's vector fits; users
-        // who want HNSW or IVFFlat indexes can add them once their dim is
-        // stable.
+        // Dimension is unconstrained so any provider's vector fits; the search
+        // query filters to matching-dimension rows, so a mixed-dimension table
+        // (e.g. mid-provider-switch) degrades to "needs re-index" instead of
+        // erroring. Users who want HNSW or IVFFlat indexes can pin the column
+        // to vector(N) and add them once their dimension is stable.
         $this->execute(<<<SQL
             CREATE TABLE {{%spectacles_imagevectors}} (
                 "assetId" integer NOT NULL PRIMARY KEY REFERENCES {{%assets}}("id") ON DELETE CASCADE,

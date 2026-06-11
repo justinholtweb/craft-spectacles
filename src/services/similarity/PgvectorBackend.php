@@ -28,24 +28,41 @@ class PgvectorBackend implements SimilarityBackend
         // similarity = 1 - distance.
         $maxDistance = 1 - $minScore;
 
-        $query = (new \craft\db\Query())
-            ->select([
-                'assetId',
-                'distance' => new Expression("embedding <=> :qv::vector", [':qv' => $literal]),
-            ])
-            ->from(self::TABLE)
-            ->where(new Expression("embedding <=> :qv2::vector <= :maxDist", [
-                ':qv2' => $literal,
-                ':maxDist' => $maxDistance,
-            ]))
-            ->orderBy(new Expression("embedding <=> :qv3::vector", [':qv3' => $literal]))
-            ->limit($limit);
+        // The `vector` column is dimension-unconstrained, so a library that
+        // was partially re-indexed after a provider switch can hold vectors of
+        // mixed dimensions. The `<=>` operator throws when the operands differ
+        // in dimension, so we MUST filter to matching-dimension rows *before*
+        // the operator is ever applied — otherwise a single stale row aborts
+        // the whole query. A MATERIALIZED CTE forces that filter to run first,
+        // mirroring the scan backend's "skip mismatches" behavior.
+        $dim = count($vector);
+        $limit = max(1, (int)$limit);
 
+        $excludeSql = '';
         if ($excludeAssetIds) {
-            $query->andWhere(['not in', 'assetId', $excludeAssetIds]);
+            $ids = implode(',', array_map('intval', $excludeAssetIds));
+            $excludeSql = " AND \"assetId\" NOT IN ($ids)";
         }
 
-        $rows = $query->all($db);
+        $sql = <<<SQL
+            WITH candidates AS MATERIALIZED (
+                SELECT "assetId", "embedding"
+                FROM {{%spectacles_imagevectors}}
+                WHERE vector_dims("embedding") = {$dim}{$excludeSql}
+            )
+            SELECT "assetId", ("embedding" <=> :qv1::vector) AS distance
+            FROM candidates
+            WHERE ("embedding" <=> :qv2::vector) <= :maxDist
+            ORDER BY "embedding" <=> :qv3::vector
+            LIMIT {$limit}
+        SQL;
+
+        $rows = $db->createCommand($sql, [
+            ':qv1' => $literal,
+            ':qv2' => $literal,
+            ':qv3' => $literal,
+            ':maxDist' => $maxDistance,
+        ])->queryAll();
 
         $out = [];
         foreach ($rows as $row) {

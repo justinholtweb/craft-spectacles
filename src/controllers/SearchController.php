@@ -7,15 +7,19 @@ use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\web\Controller;
 use craft\web\UploadedFile;
+use justinholtweb\spectacles\models\Settings;
 use justinholtweb\spectacles\Plugin;
 use Throwable;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
+use yii\web\TooManyRequestsHttpException;
 
 class SearchController extends Controller
 {
+    private const MAX_LIMIT = 100;
+
     protected array|int|bool $allowAnonymous = ['upload', 'similar'];
     public $enableCsrfValidation = false;
 
@@ -31,6 +35,7 @@ class SearchController extends Controller
         if (!$settings->allowPublicSearch) {
             throw new ForbiddenHttpException('Public search is disabled.');
         }
+        $this->enforceRateLimit($settings);
 
         $file = UploadedFile::getInstanceByName('image');
         if (!$file) {
@@ -80,6 +85,12 @@ class SearchController extends Controller
     {
         $this->requireAcceptsJson();
 
+        $settings = Plugin::getInstance()->getSettings();
+        if (!$settings->allowPublicSearch) {
+            throw new ForbiddenHttpException('Public search is disabled.');
+        }
+        $this->enforceRateLimit($settings);
+
         $asset = Asset::find()->id($assetId)->one();
         if (!$asset) {
             throw new NotFoundHttpException('Asset not found.');
@@ -117,6 +128,38 @@ class SearchController extends Controller
         if ($value === null || $value === '') {
             return null;
         }
-        return max(1, (int)$value);
+        return max(1, min(self::MAX_LIMIT, (int)$value));
+    }
+
+    /**
+     * Fixed-window, per-IP rate limit for the anonymous endpoints. Each call
+     * here fans out to a paid vision/embedding API, so this caps how fast an
+     * unauthenticated visitor can run up the bill. Disabled when the limit is
+     * set to 0.
+     */
+    private function enforceRateLimit(Settings $settings): void
+    {
+        $limit = $settings->publicSearchRateLimit;
+        if ($limit <= 0) {
+            return;
+        }
+
+        $window = max(1, $settings->publicSearchRateWindow);
+        $ip = Craft::$app->request->getUserIP() ?: 'unknown';
+        $key = 'spectacles:rate:' . sha1($ip);
+        $cache = Craft::$app->cache;
+
+        $now = time();
+        $bucket = $cache->get($key);
+        if (!is_array($bucket) || ($bucket['reset'] ?? 0) <= $now) {
+            $bucket = ['count' => 0, 'reset' => $now + $window];
+        }
+
+        $bucket['count']++;
+        if ($bucket['count'] > $limit) {
+            throw new TooManyRequestsHttpException('Search rate limit exceeded. Please slow down.');
+        }
+
+        $cache->set($key, $bucket, $bucket['reset'] - $now);
     }
 }

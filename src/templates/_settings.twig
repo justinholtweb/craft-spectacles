@@ -239,6 +239,23 @@
     value: settings.maxVisitorUploadKb,
 }) }}
 
+{{ forms.textField({
+    label: 'Public search rate limit (requests per window)'|t('spectacles'),
+    instructions: 'Max requests per visitor IP within the window below, across the public upload and similar endpoints. Each request can trigger a paid API call. Set to 0 to disable rate limiting.'|t('spectacles'),
+    id: 'publicSearchRateLimit',
+    name: 'publicSearchRateLimit',
+    type: 'number',
+    value: settings.publicSearchRateLimit,
+}) }}
+
+{{ forms.textField({
+    label: 'Rate limit window (seconds)'|t('spectacles'),
+    id: 'publicSearchRateWindow',
+    name: 'publicSearchRateWindow',
+    type: 'number',
+    value: settings.publicSearchRateWindow,
+}) }}
+
 <hr>
 <a class="btn" href="{{ actionUrl('spectacles/admin/reindex') }}" data-confirm="{{ 'Queue analysis for every image in the configured volumes? Switching providers requires a re-index because vector dimensions differ.'|t('spectacles') }}">
     {{ 'Re-index all images'|t('spectacles') }}

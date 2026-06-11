@@ -9,7 +9,9 @@ use craft\elements\Asset;
 use craft\events\DefineHtmlEvent;
 use craft\events\ModelEvent;
 use craft\events\RegisterUrlRulesEvent;
-use craft\helpers\UrlHelper;
+use craft\events\ReplaceAssetEvent;
+use craft\helpers\ElementHelper;
+use craft\services\Assets;
 use craft\web\UrlManager;
 use craft\web\twig\variables\CraftVariable;
 use justinholtweb\spectacles\jobs\AnalyzeAsset;
@@ -65,11 +67,6 @@ class Plugin extends BasePlugin
         ]);
     }
 
-    public function getSettingsResponse(): \yii\web\Response
-    {
-        return Craft::$app->controller->redirect(UrlHelper::cpUrl('settings/plugins/spectacles'));
-    }
-
     private function attachEventHandlers(): void
     {
         Event::on(
@@ -79,20 +76,25 @@ class Plugin extends BasePlugin
                 /** @var Asset $asset */
                 $asset = $event->sender;
 
-                if ($asset->kind !== Asset::KIND_IMAGE) {
+                // Only auto-analyze brand-new uploads here. File replacements
+                // are handled by the AFTER_REPLACE_ASSET listener below, and
+                // ordinary edits (title, focal point, moves) must NOT re-run
+                // the paid vision pipeline. Skip drafts/revisions and the
+                // duplicate saves that propagation fires on multi-site setups.
+                if (!$asset->firstSave || $asset->propagating || ElementHelper::isDraftOrRevision($asset)) {
                     return;
                 }
 
-                $settings = $this->getSettings();
-                if (!$settings->autoAnalyzeOnUpload) {
-                    return;
-                }
+                $this->maybeQueueAnalysis($asset);
+            }
+        );
 
-                if (!empty($settings->volumeUids) && !in_array($asset->getVolume()->uid, $settings->volumeUids, true)) {
-                    return;
-                }
-
-                Craft::$app->queue->push(new AnalyzeAsset(['assetId' => $asset->id]));
+        Event::on(
+            Assets::class,
+            Assets::EVENT_AFTER_REPLACE_ASSET,
+            function (ReplaceAssetEvent $event): void {
+                // A replaced file invalidates the old analysis — re-queue it.
+                $this->maybeQueueAnalysis($event->asset);
             }
         );
 
@@ -141,6 +143,28 @@ class Plugin extends BasePlugin
                 }
             }
         );
+    }
+
+    /**
+     * Queue a vision analysis job for an asset if it is an image, auto-analyze
+     * is enabled, and it lives in a configured volume.
+     */
+    private function maybeQueueAnalysis(Asset $asset): void
+    {
+        if ($asset->kind !== Asset::KIND_IMAGE || !$asset->id) {
+            return;
+        }
+
+        $settings = $this->getSettings();
+        if (!$settings->autoAnalyzeOnUpload) {
+            return;
+        }
+
+        if (!empty($settings->volumeUids) && !in_array($asset->getVolume()->uid, $settings->volumeUids, true)) {
+            return;
+        }
+
+        Craft::$app->queue->push(new AnalyzeAsset(['assetId' => $asset->id]));
     }
 
     private function renderSidebar(Asset $asset): string

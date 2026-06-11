@@ -99,14 +99,4 @@ class Metadata extends Component
 
         return $record;
     }
-
-    public function deleteForAsset(int $assetId): void
-    {
-        ImageMetadata::deleteAll(['assetId' => $assetId]);
-        try {
-            Plugin::getInstance()->similarity->deleteForAsset($assetId);
-        } catch (Throwable $e) {
-            Craft::warning("Spectacles: vector index delete failed for asset {$assetId}: " . $e->getMessage(), __METHOD__);
-        }
-    }
 }
