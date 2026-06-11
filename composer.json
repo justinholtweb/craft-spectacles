@@ -17,14 +17,14 @@
     "authors": [
         {
             "name": "Justin Holt",
-            "homepage": "https://justinholtweb.com"
+            "homepage": "https://justinholt.com"
         }
     ],
     "support": {
         "email": "justin@justinholt.com",
-        "issues": "https://craft-spectacles.com",
-        "source": "https://craft-spectacles.com",
-        "docs": "https://craft-spectacles.com"
+        "issues": "https://github.com/justinholtweb/craft-spectacles/issues",
+        "source": "https://github.com/justinholtweb/craft-spectacles",
+        "docs": "https://craft-spectacles.com/docs"
     },
     "require": {
         "php": "^8.2",
@@ -42,7 +42,7 @@
         "hasCpSection": false,
         "class": "justinholtweb\\spectacles\\Plugin",
         "developer": "Justin Holt",
-        "developerUrl": "https://justinholtweb.com",
+        "developerUrl": "https://justinholt.com",
         "documentationUrl": "https://craft-spectacles.com",
         "description": "Computer-vision-powered similar-image search for Craft CMS assets."
     }
