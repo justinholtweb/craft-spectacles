@@ -2,3 +2,14 @@
 composer.lock
 .DS_Store
 .phpunit.result.cache
+/.phpunit.cache/
+
+# Test artifacts
+/tests/_output/
+/tests/_support/_generated/
+/tests/_craft/config/project/
+
+# Craft writes runtime/logs/config-deltas in here during the integration suite,
+# but the directory itself must exist — TestSetup::configureCraft() realpath()s it.
+/tests/_craft/storage/*
+!/tests/_craft/storage/.gitkeep

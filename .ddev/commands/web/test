@@ -1,0 +1,35 @@
+#!/bin/bash
+## Description: Run the Spectacles test suites (PHPUnit unit + Codeception integration)
+## Usage: test [unit|integration|phpstan]
+## Example: "ddev test" | "ddev test unit" | "ddev test phpstan"
+
+set -e
+cd /var/www/html
+
+case "${1:-all}" in
+  unit)
+    vendor/bin/phpunit
+    ;;
+  integration)
+    vendor/bin/codecept build --quiet
+    vendor/bin/codecept run integration
+    ;;
+  phpstan)
+    vendor/bin/phpstan analyse --memory-limit=1G
+    ;;
+  all)
+    echo "== PHPUnit (unit) =="
+    vendor/bin/phpunit
+    echo
+    echo "== Codeception (integration) =="
+    vendor/bin/codecept build --quiet
+    vendor/bin/codecept run integration
+    echo
+    echo "== PHPStan =="
+    vendor/bin/phpstan analyse --memory-limit=1G
+    ;;
+  *)
+    echo "Unknown target: $1 (expected unit, integration, phpstan, or all)" >&2
+    exit 1
+    ;;
+esac

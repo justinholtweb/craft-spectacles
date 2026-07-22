@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.0.1 - 2026-07-22
+
+### Fixed
+- Every vision and embedding request failed with `Class "yii\httpclient\Client"
+  not found`. The shared HTTP helper all eight providers call through depends on
+  `yiisoft/yii2-httpclient`, which was never declared as a requirement and is not
+  pulled in by `craftcms/cms` — so no provider could reach its API. It is now an
+  explicit dependency.
+- `composer install` could not resolve the dependency tree: `craftcms/phpstan`
+  (which publishes only `dev-main`) requires PHPStan 1.x, while the root package
+  asked for `^2.0`. PHPStan is now pinned to `^1.12`.
+
+### Added
+- Test suites. PHPUnit covers provider-agnostic logic (cosine similarity,
+  response normalization, JSON extraction, pgvector literal formatting);
+  Codeception with Craft's test framework covers everything needing a booted
+  Craft — settings validation, the metadata record and its JSON columns, the
+  similarity/metadata/vision services, the Twig variable, event wiring, and the
+  public endpoints' rate limiting.
+- A DDEV config so the toolchain runs without a local PHP install, plus a
+  `ddev test` command for the suites and static analysis.
+
 ## 5.0.0 - 2026-06-11
 
 First public release. The version is aligned with the Craft 5 major version the

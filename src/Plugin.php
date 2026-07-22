@@ -27,6 +27,7 @@ use yii\base\Event;
  * @property-read Metadata $metadata
  * @property-read Similarity $similarity
  * @property-read Vision $vision
+ * @method Settings getSettings()
  */
 class Plugin extends BasePlugin
 {

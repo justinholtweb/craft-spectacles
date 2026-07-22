@@ -1,0 +1,17 @@
+includes:
+    - vendor/craftcms/phpstan/phpstan.neon
+
+parameters:
+    level: 5
+    paths:
+        - src
+        - tests
+    excludePaths:
+        analyseAndScan:
+            # Codeception regenerates these actor classes on every `codecept
+            # build`; their docblocks reference a fictional _generated
+            # namespace that PHPStan cannot resolve.
+            - tests/_support/_generated
+            - tests/_support/IntegrationTester.php
+            # Craft's compiled behaviors, written at test runtime.
+            - tests/_craft/storage

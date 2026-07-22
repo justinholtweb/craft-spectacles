@@ -107,6 +107,7 @@ class Similarity extends Component
 
         $assetIds = array_map(fn(array $h): int => $h['assetId'], $hits);
         $assets = Asset::find()->id($assetIds)->indexBy('id')->all();
+        /** @var array<int, ImageMetadata> $metadata */
         $metadata = ImageMetadata::find()->where(['assetId' => $assetIds])->indexBy('assetId')->all();
 
         $out = [];
