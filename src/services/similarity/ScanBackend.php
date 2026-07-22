@@ -13,6 +13,7 @@ class ScanBackend implements SimilarityBackend
 {
     public function search(array $vector, int $limit, float $minScore, array $excludeAssetIds = []): array
     {
+        /** @var ImageMetadata[] $records */
         $records = ImageMetadata::find()
             ->where(['not', ['embedding' => null]])
             ->all();

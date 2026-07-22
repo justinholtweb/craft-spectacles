@@ -141,6 +141,44 @@ The asset edit screen renders a Spectacles panel in the sidebar showing the desc
 3. Wire it into `Vision::visionProvider()` / `Vision::embeddingProvider()`.
 4. Add fields to the settings template.
 
+## Development
+
+The repo ships a [DDEV](https://ddev.com) config so the toolchain runs without
+installing PHP locally:
+
+```bash
+ddev start
+ddev composer install
+ddev test              # everything: unit + integration + static analysis
+```
+
+`ddev test` also accepts a target: `ddev test unit`, `ddev test integration`,
+or `ddev test phpstan`.
+
+### Test suites
+
+There are two, split by what they need to run:
+
+| Suite | Runner | Location | Scope |
+|---|---|---|---|
+| `unit` | PHPUnit | `tests/unit` | Pure logic — cosine similarity, provider response normalization, JSON extraction, pgvector literal formatting. No Craft, no database. |
+| `integration` | Codeception + Craft's test framework | `tests/integration` | Anything needing a booted Craft: settings validation, the ActiveRecord and its JSON columns, the similarity/metadata/vision services, the Twig variable, event wiring, and the public endpoint's rate limiter. |
+
+Without DDEV:
+
+```bash
+composer install
+composer test              # PHPUnit only
+composer test:integration  # Codeception (needs a database)
+composer phpstan
+```
+
+The integration suite installs Craft into a dedicated `craft_test` database and
+wipes it on every run — it never touches the project database. DDEV provisions
+that database via a `post-start` hook; outside DDEV, create it yourself and
+point `tests/.env` at it.
+
 ## License
 
-MIT
+This plugin is licensed under the [Craft license](LICENSE.md). See `LICENSE.md`
+for the full terms.

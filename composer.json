@@ -2,7 +2,7 @@
     "name": "justinholtweb/craft-spectacles",
     "description": "Computer-vision-powered similar-image search for Craft CMS assets.",
     "type": "craft-plugin",
-    "version": "5.0.0",
+    "version": "5.0.1",
     "keywords": [
         "craftcms",
         "cms",
@@ -28,12 +28,49 @@
     },
     "require": {
         "php": "^8.2",
-        "craftcms/cms": "^5.0.0"
+        "craftcms/cms": "^5.0.0",
+        "yiisoft/yii2-httpclient": "^2.0"
     },
     "autoload": {
         "psr-4": {
             "justinholtweb\\spectacles\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "justinholtweb\\spectacles\\tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.2.0",
+        "codeception/module-asserts": "^3.0.0",
+        "codeception/module-datafactory": "^3.0.0",
+        "codeception/module-phpbrowser": "^3.0.0",
+        "codeception/module-rest": "^3.3.2",
+        "codeception/module-yii2": "^1.1.9",
+        "craftcms/phpstan": "dev-main",
+        "fakerphp/faker": "^1.19.0",
+        "league/factory-muffin": "^3.3.0",
+        "phpstan/phpstan": "^1.12",
+        "phpunit/phpunit": "^10.5",
+        "vlucas/phpdotenv": "^5.4.1"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:integration": "codecept run integration",
+        "test:all": [
+            "@test",
+            "@test:integration"
+        ],
+        "phpstan": "phpstan analyse --memory-limit=1G"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true,
+            "phpstan/extension-installer": true
+        },
+        "sort-packages": true
     },
     "extra": {
         "name": "Spectacles",

@@ -1,0 +1,18 @@
+actor: IntegrationTester
+modules:
+    enabled:
+        - \craft\test\Craft:
+              configFile: 'tests/_craft/config/test.php'
+              entryUrl: 'https://test.craftcms.test/index.php'
+              projectConfig: ~
+              migrations: []
+              plugins:
+                  - class: justinholtweb\spectacles\Plugin
+                    handle: spectacles
+              cleanup: true
+              transaction: true
+              dbSetup:
+                  clean: true
+                  setupCraft: true
+        - \Codeception\Module\Asserts
+step_decorators: ~
