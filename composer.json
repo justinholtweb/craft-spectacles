@@ -2,7 +2,7 @@
     "name": "justinholtweb/craft-spectacles",
     "description": "Computer-vision-powered similar-image search for Craft CMS assets.",
     "type": "craft-plugin",
-    "version": "5.0.1",
+    "version": "5.0.2",
     "keywords": [
         "craftcms",
         "cms",

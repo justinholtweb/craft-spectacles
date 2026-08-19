@@ -1,5 +1,16 @@
 # Changelog
 
+## 5.0.2 - 2026-08-19
+
+### Fixed
+- The four provider preset buttons on the plugin settings screen ("Best
+  quality", "Balanced", "Cheapest hosted", "Self-hosted") did nothing. Craft
+  renders plugin settings inside `{% namespace 'settings' %}`, which rewrites
+  every `name="…"` it finds — including inside `<script>` text — so the
+  hard-coded `settings[…]` selector in the preset handler became
+  `settings[settings][…]` and matched no field. The selector now matches on the
+  field-name suffix, which the namespacing leaves alone.
+
 ## 5.0.1 - 2026-07-22
 
 ### Fixed

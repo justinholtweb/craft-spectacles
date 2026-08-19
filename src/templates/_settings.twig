@@ -292,7 +292,11 @@
 
     function applyPreset(preset) {
         for (const [name, value] of Object.entries(preset)) {
-            const field = document.querySelector(`[name="settings[${name}]"]`);
+            /* Matched on the suffix, not the whole name: this template is rendered through
+               `View::namespaceInputs(…, 'settings')`, which rewrites `name="…"` inside <script>
+               text too — a hard-coded `settings[${name}]` here comes out as
+               `settings[settings][${name}]` and matches nothing. `name$=` is left alone. */
+            const field = document.querySelector(`[name$="[${name}]"]`);
             if (!field) continue;
             field.value = value;
             field.dispatchEvent(new Event('change', { bubbles: true }));
