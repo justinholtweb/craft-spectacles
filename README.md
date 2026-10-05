@@ -49,7 +49,9 @@ Other settings:
 - `autoAnalyzeOnUpload` — queue an analysis job whenever an image asset is saved.
 - `volumeUids` — restrict analysis to specific volumes.
 - `defaultResultLimit` / `minSimilarityScore` — search tuning.
-- `allowPublicSearch` / `maxVisitorUploadKb` — public upload endpoint controls.
+- `allowPublicSearch` — off by default. Exposes `POST /spectacles/search` and `GET /spectacles/similar/{id}` to anyone.
+- `publicVolumeUids` — the **only** volumes public search returns images from or may be asked about. Empty means none: analysing a volume (`volumeUids`) does not publish it.
+- `maxVisitorUploadKb`, `publicSearchRateLimit` / `publicSearchRateWindow` — per-visitor limits on the public endpoints (by connecting address; `X-Forwarded-For` only counts once `trustedHosts` names your proxies), under a site-wide ceiling of 20×.
 
 > **Switching providers?** Different models produce vectors of different dimensions, so Spectacles only compares vectors of matching shape. After switching, click **Re-index all images** to regenerate embeddings.
 
@@ -57,7 +59,7 @@ Other settings:
 
 ### Re-index existing assets
 
-From the settings screen, click **Re-index all images** to queue a job for every image in the configured volumes. Progress is visible in the queue.
+From the settings screen, click **Re-index all images** to queue a job for every image in the configured volumes. Progress is visible in the queue. Re-indexing spends on your providers for every image, so it needs the **Re-index every image** permission; analysing a single asset needs permission to save it.
 
 ### Twig
 

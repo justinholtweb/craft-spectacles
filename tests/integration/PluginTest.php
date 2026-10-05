@@ -52,16 +52,17 @@ class PluginTest extends Unit
         );
     }
 
-    public function testCpUrlRulesAreRegistered(): void
+    /**
+     * The admin actions are POST-only since 5.1.0 and posted as actions by the CP buttons; the
+     * GET-style CP routes they used to have would only invite a link to them.
+     */
+    public function testAdminActionsHaveNoGetRoutes(): void
     {
         $event = new RegisterUrlRulesEvent();
         Event::trigger(UrlManager::class, UrlManager::EVENT_REGISTER_CP_URL_RULES, $event);
 
-        $this->assertSame('spectacles/admin/reindex', $event->rules['spectacles/reindex'] ?? null);
-        $this->assertSame(
-            'spectacles/admin/analyze-asset',
-            $event->rules['spectacles/analyze-asset'] ?? null
-        );
+        $this->assertArrayNotHasKey('spectacles/reindex', $event->rules);
+        $this->assertArrayNotHasKey('spectacles/analyze-asset', $event->rules);
     }
 
     public function testUploadingAnImageQueuesAnalysisWhenEnabled(): void

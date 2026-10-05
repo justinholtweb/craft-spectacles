@@ -8,9 +8,10 @@
             <div class="heading"><span>{{ 'Status'|t('spectacles') }}</span></div>
             <div class="value">
                 <p class="light">{{ 'Not analyzed yet.'|t('spectacles') }}</p>
-                <a class="btn small" href="{{ actionUrl('spectacles/admin/analyze-asset', { assetId: asset.id }) }}">
+                {# Posted, not linked: the asset editor is itself a form, and analysing spends money. #}
+                <button type="button" class="btn small" data-spectacles-analyze="{{ asset.id }}">
                     {{ 'Analyze now'|t('spectacles') }}
-                </a>
+                </button>
             </div>
         </div>
     {% else %}
@@ -59,6 +60,18 @@
         </div>
     {% endif %}
 </fieldset>
+
+<script>
+document.querySelectorAll('[data-spectacles-analyze]').forEach(function (button) {
+    button.addEventListener('click', function () {
+        button.classList.add('loading');
+        Craft.sendActionRequest('POST', 'spectacles/admin/analyze-asset', { data: { assetId: button.getAttribute('data-spectacles-analyze') } })
+            .then(function (response) { Craft.cp.displayNotice(response.data.message); })
+            .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || {{ 'Couldn’t queue the analysis.'|t('spectacles')|json_encode|raw }}); })
+            .finally(function () { button.classList.remove('loading'); });
+    });
+});
+</script>
 
 <style>
     .spectacles-similar { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 0; }

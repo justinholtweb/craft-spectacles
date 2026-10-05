@@ -9,9 +9,11 @@ use craft\elements\Asset;
 use craft\events\DefineHtmlEvent;
 use craft\events\ModelEvent;
 use craft\events\RegisterUrlRulesEvent;
+use craft\events\RegisterUserPermissionsEvent;
 use craft\events\ReplaceAssetEvent;
 use craft\helpers\ElementHelper;
 use craft\services\Assets;
+use craft\services\UserPermissions;
 use craft\web\UrlManager;
 use craft\web\twig\variables\CraftVariable;
 use justinholtweb\spectacles\jobs\AnalyzeAsset;
@@ -31,6 +33,9 @@ use yii\base\Event;
  */
 class Plugin extends BasePlugin
 {
+    /** Queue a re-analysis of every image — paid API spend, so not something "queue manager" implies. */
+    public const PERMISSION_REINDEX = 'spectacles:reindex';
+
     public string $schemaVersion = '1.1.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = false;
@@ -118,12 +123,21 @@ class Plugin extends BasePlugin
             }
         );
 
+        // The admin actions are POST-only since 5.1.0, posted by the CP buttons as actions; the
+        // GET-style CP routes they used to have are gone.
+
         Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            function (RegisterUrlRulesEvent $event): void {
-                $event->rules['spectacles/reindex'] = 'spectacles/admin/reindex';
-                $event->rules['spectacles/analyze-asset'] = 'spectacles/admin/analyze-asset';
+            UserPermissions::class,
+            UserPermissions::EVENT_REGISTER_PERMISSIONS,
+            function (RegisterUserPermissionsEvent $event): void {
+                $event->permissions[] = [
+                    'heading' => Craft::t('spectacles', 'Spectacles'),
+                    'permissions' => [
+                        self::PERMISSION_REINDEX => [
+                            'label' => Craft::t('spectacles', 'Re-index every image (spends on the configured AI providers)'),
+                        ],
+                    ],
+                ];
             }
         );
 
@@ -171,8 +185,14 @@ class Plugin extends BasePlugin
     private function renderSidebar(Asset $asset): string
     {
         $metadata = $this->metadata->findByAssetId($asset->id);
+        // Only what this user may see: the index spans every analysed volume, and a thumbnail and
+        // title from a volume they cannot open is a leak however small it is drawn.
+        $elements = Craft::$app->getElements();
         $similar = $metadata
-            ? $this->similarity->similarToAsset($asset, 8)
+            ? array_slice(array_values(array_filter(
+                $this->similarity->similarToAsset($asset, 24),
+                static fn(array $row): bool => $elements->canView($row['asset']),
+            )), 0, 8)
             : [];
 
         return Craft::$app->view->renderTemplate(

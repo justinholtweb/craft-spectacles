@@ -51,13 +51,13 @@ class Similarity extends Component
     /**
      * @return array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
      */
-    public function similarToAsset(Asset $asset, ?int $limit = null): array
+    public function similarToAsset(Asset $asset, ?int $limit = null, ?array $volumeIds = null): array
     {
         $metadata = Plugin::getInstance()->metadata->findByAssetId($asset->id);
         if (!$metadata || !$metadata->embedding) {
             return [];
         }
-        return $this->similarToVector($metadata->embedding, $limit, excludeAssetIds: [$asset->id]);
+        return $this->similarToVector($metadata->embedding, $limit, excludeAssetIds: [$asset->id], volumeIds: $volumeIds);
     }
 
     /**
@@ -76,14 +76,14 @@ class Similarity extends Component
      *     results: array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
      * }
      */
-    public function similarToImage(string $imageData, string $mimeType, ?int $limit = null): array
+    public function similarToImage(string $imageData, string $mimeType, ?int $limit = null, ?array $volumeIds = null): array
     {
         $vision = Plugin::getInstance()->vision;
         $analysis = $vision->analyze($imageData, $mimeType);
 
         $embedding = $vision->embedForImage($imageData, $mimeType, $analysis);
         $results = $embedding !== null
-            ? $this->similarToVector($embedding->vector, $limit)
+            ? $this->similarToVector($embedding->vector, $limit, volumeIds: $volumeIds)
             : [];
 
         return ['analysis' => $analysis, 'results' => $results];
@@ -92,21 +92,33 @@ class Similarity extends Component
     /**
      * @param float[] $vector
      * @param int[] $excludeAssetIds
+     * @param int[]|null $volumeIds Only assets in these volumes; null means any. The public
+     *                              endpoints pass the public volumes — an empty array finds nothing.
      * @return array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
      */
-    public function similarToVector(array $vector, ?int $limit = null, array $excludeAssetIds = []): array
+    public function similarToVector(array $vector, ?int $limit = null, array $excludeAssetIds = [], ?array $volumeIds = null): array
     {
         $settings = Plugin::getInstance()->getSettings();
         $limit ??= $settings->defaultResultLimit;
         $minScore = $settings->minSimilarityScore;
 
-        $hits = $this->backend()->search($vector, $limit, $minScore, $excludeAssetIds);
+        if ($volumeIds === []) {
+            return [];
+        }
+
+        // The index holds every analysed image, so a volume restriction is applied to the hits.
+        // More are asked for than are wanted, so the restriction doesn't shorten the list.
+        $hits = $this->backend()->search($vector, $volumeIds === null ? $limit : $limit * 5, $minScore, $excludeAssetIds);
         if (!$hits) {
             return [];
         }
 
         $assetIds = array_map(fn(array $h): int => $h['assetId'], $hits);
-        $assets = Asset::find()->id($assetIds)->indexBy('id')->all();
+        $assetQuery = Asset::find()->id($assetIds)->indexBy('id');
+        if ($volumeIds !== null) {
+            $assetQuery->volumeId($volumeIds);
+        }
+        $assets = $assetQuery->all();
         /** @var array<int, ImageMetadata> $metadata */
         $metadata = ImageMetadata::find()->where(['assetId' => $assetIds])->indexBy('assetId')->all();
 
@@ -122,6 +134,9 @@ class Similarity extends Component
                 'score' => round($hit['score'], 4),
                 'metadata' => $meta,
             ];
+            if (count($out) >= $limit) {
+                break;
+            }
         }
         return $out;
     }

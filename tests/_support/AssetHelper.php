@@ -25,18 +25,18 @@ trait AssetHelper
      * by Craft's in-memory service cache) would point at rows that no longer
      * exist by the time the next test runs.
      */
-    protected function testVolume(): Volume
+    protected function testVolume(string $volumeHandle = 'spectaclesTest'): Volume
     {
         // Must live outside the project — Craft refuses local filesystems that
         // sit within or above its own system directories.
-        $path = sys_get_temp_dir() . '/spectacles-test-volume';
+        $path = sys_get_temp_dir() . '/spectacles-test-volume' . ($volumeHandle === 'spectaclesTest' ? '' : '-' . $volumeHandle);
         FileHelper::createDirectory($path);
 
-        $fsHandle = 'spectaclesTestFs';
+        $fsHandle = $volumeHandle . 'Fs';
         if (!Craft::$app->getFs()->getFilesystemByHandle($fsHandle)) {
             $fs = new Local([
                 'handle' => $fsHandle,
-                'name' => 'Spectacles Test FS',
+                'name' => "Spectacles Test FS ($volumeHandle)",
                 'path' => $path,
                 'hasUrls' => false,
             ]);
@@ -47,7 +47,6 @@ trait AssetHelper
             }
         }
 
-        $volumeHandle = 'spectaclesTest';
         $volume = Craft::$app->getVolumes()->getVolumeByHandle($volumeHandle);
 
         // A volume the service still remembers but whose folder rows were
@@ -57,7 +56,7 @@ trait AssetHelper
         }
 
         $volume = new Volume([
-            'name' => 'Spectacles Test',
+            'name' => "Spectacles Test ($volumeHandle)",
             'handle' => $volumeHandle,
             'fsHandle' => $fsHandle,
         ]);
@@ -74,9 +73,9 @@ trait AssetHelper
     /**
      * Save a real (tiny) PNG into the test volume and return the Asset.
      */
-    protected function createImageAsset(string $filename = 'test.png'): Asset
+    protected function createImageAsset(string $filename = 'test.png', string $volumeHandle = 'spectaclesTest'): Asset
     {
-        $volume = $this->testVolume();
+        $volume = $this->testVolume($volumeHandle);
 
         $tempPath = Craft::$app->path->getTempPath() . '/' . uniqid('spectacles-', true) . '.png';
         file_put_contents($tempPath, $this->onePixelPng());

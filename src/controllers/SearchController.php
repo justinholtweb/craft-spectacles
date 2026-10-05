@@ -7,6 +7,7 @@ use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\web\Controller;
 use craft\web\UploadedFile;
+use justinholtweb\spectacles\helpers\RateLimit;
 use justinholtweb\spectacles\models\Settings;
 use justinholtweb\spectacles\Plugin;
 use Throwable;
@@ -60,7 +61,8 @@ class SearchController extends Controller
             $result = Plugin::getInstance()->similarity->similarToImage(
                 $imageData,
                 $mime,
-                $this->intParam('limit')
+                $this->intParam('limit'),
+                $settings->getPublicVolumeIds(),
             );
         } catch (Throwable $e) {
             Craft::error('Spectacles upload search failed: ' . $e->getMessage(), __METHOD__);
@@ -91,14 +93,18 @@ class SearchController extends Controller
         }
         $this->enforceRateLimit($settings);
 
-        $asset = Asset::find()->id($assetId)->one();
+        // Only an image in a public volume can be asked about, and only public images come back.
+        // An asset anywhere else is "not found", so its existence isn't confirmed either.
+        $publicVolumeIds = $settings->getPublicVolumeIds();
+        $asset = $publicVolumeIds === [] ? null : Asset::find()->id($assetId)->volumeId($publicVolumeIds)->one();
         if (!$asset) {
             throw new NotFoundHttpException('Asset not found.');
         }
 
         $results = Plugin::getInstance()->similarity->similarToAsset(
             $asset,
-            $this->intParam('limit')
+            $this->intParam('limit'),
+            $publicVolumeIds,
         );
 
         return $this->asJson([
@@ -132,10 +138,12 @@ class SearchController extends Controller
     }
 
     /**
-     * Fixed-window, per-IP rate limit for the anonymous endpoints. Each call
-     * here fans out to a paid vision/embedding API, so this caps how fast an
-     * unauthenticated visitor can run up the bill. Disabled when the limit is
-     * set to 0.
+     * Per-address rate limit for the anonymous endpoints, under a site-wide ceiling. Each call fans
+     * out to a paid vision/embedding API, so this caps how fast visitors can run up the bill.
+     * Disabled when the limit is 0.
+     *
+     * Through helpers\RateLimit since 5.1.0: the old window keyed on `getUserIP()`, which a forged
+     * `X-Forwarded-For` resets, and read-then-wrote without a lock, so parallel requests all got in.
      */
     private function enforceRateLimit(Settings $settings): void
     {
@@ -144,22 +152,8 @@ class SearchController extends Controller
             return;
         }
 
-        $window = max(1, $settings->publicSearchRateWindow);
-        $ip = Craft::$app->request->getUserIP() ?: 'unknown';
-        $key = 'spectacles:rate:' . sha1($ip);
-        $cache = Craft::$app->cache;
-
-        $now = time();
-        $bucket = $cache->get($key);
-        if (!is_array($bucket) || ($bucket['reset'] ?? 0) <= $now) {
-            $bucket = ['count' => 0, 'reset' => $now + $window];
-        }
-
-        $bucket['count']++;
-        if ($bucket['count'] > $limit) {
+        if (!RateLimit::allowWindow('search', $limit, max(1, $settings->publicSearchRateWindow))) {
             throw new TooManyRequestsHttpException('Search rate limit exceeded. Please slow down.');
         }
-
-        $cache->set($key, $bucket, $bucket['reset'] - $now);
     }
 }

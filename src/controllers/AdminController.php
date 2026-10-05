@@ -18,7 +18,10 @@ class AdminController extends Controller
      */
     public function actionReindex(): Response
     {
-        $this->requirePermission('utility:queue-manager');
+        // POST, and a permission of its own: this queues a paid analysis of every image. Before
+        // 5.1.0 it was a GET link, so an <img src> on any page an admin visited could run it.
+        $this->requirePostRequest();
+        $this->requirePermission(Plugin::PERMISSION_REINDEX);
 
         $settings = Plugin::getInstance()->getSettings();
 
@@ -38,9 +41,13 @@ class AdminController extends Controller
             $count++;
         }
 
-        Craft::$app->session->setNotice(
-            Craft::t('spectacles', 'Queued {count} assets for analysis.', ['count' => $count])
-        );
+        $message = Craft::t('spectacles', 'Queued {count} assets for analysis.', ['count' => $count]);
+
+        if ($this->request->getAcceptsJson()) {
+            return $this->asSuccess($message, ['count' => $count]);
+        }
+
+        Craft::$app->session->setNotice($message);
 
         return $this->redirect('settings/plugins/spectacles');
     }
@@ -51,14 +58,26 @@ class AdminController extends Controller
      */
     public function actionAnalyzeAsset(): Response
     {
-        $assetId = (int)Craft::$app->request->getRequiredParam('assetId');
+        // POST, and the right to save the asset rather than merely see it: analysing spends on a
+        // paid API and writes the asset's metadata. Before 5.1.0 it was a GET link gated on
+        // viewing.
+        $this->requirePostRequest();
+
+        $assetId = (int)Craft::$app->request->getRequiredBodyParam('assetId');
         $asset = Asset::find()->id($assetId)->one();
         if (!$asset) {
             throw new NotFoundHttpException('Asset not found.');
         }
-        $this->requirePermission("viewAssets:{$asset->getVolume()->uid}");
+        if (!Craft::$app->getElements()->canSave($asset)) {
+            throw new \yii\web\ForbiddenHttpException('User is not authorized to analyse this asset.');
+        }
 
         Craft::$app->queue->push(new AnalyzeAsset(['assetId' => $asset->id]));
+
+        if ($this->request->getAcceptsJson()) {
+            return $this->asSuccess(Craft::t('spectacles', 'Analysis queued.'));
+        }
+
         Craft::$app->session->setNotice(Craft::t('spectacles', 'Analysis queued.'));
 
         return $this->redirect($asset->getCpEditUrl() ?: 'assets');

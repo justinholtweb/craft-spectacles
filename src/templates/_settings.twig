@@ -224,12 +224,26 @@
 }) }}
 
 {{ forms.lightswitchField({
-    label: 'Allow public visitor uploads'|t('spectacles'),
-    instructions: 'Exposes POST /spectacles/search.'|t('spectacles'),
+    label: 'Allow public search'|t('spectacles'),
+    instructions: 'Exposes `POST /spectacles/search` (visitor uploads) and `GET /spectacles/similar/<id>` to anyone. Each call spends on your AI providers.'|t('spectacles'),
     id: 'allowPublicSearch',
     name: 'allowPublicSearch',
     on: settings.allowPublicSearch,
 }) }}
+
+{{ forms.checkboxSelectField({
+    label: 'Public volumes'|t('spectacles'),
+    instructions: 'The only volumes public search may return images from, or be asked about. Analysing a volume for the control panel does not publish it. None are public until you choose them.'|t('spectacles'),
+    id: 'publicVolumeUids',
+    name: 'publicVolumeUids',
+    options: volumeOptions,
+    values: settings.publicVolumeUids,
+    showAllOption: false,
+}) }}
+
+{% if settings.allowPublicSearch and not settings.publicVolumeUids %}
+    <p class="warning">{{ 'Public search is on, but no volume is public, so it returns nothing. Choose the volumes visitors may search.'|t('spectacles') }}</p>
+{% endif %}
 
 {{ forms.textField({
     label: 'Max visitor upload (KB)'|t('spectacles'),
@@ -257,9 +271,26 @@
 }) }}
 
 <hr>
-<a class="btn" href="{{ actionUrl('spectacles/admin/reindex') }}" data-confirm="{{ 'Queue analysis for every image in the configured volumes? Switching providers requires a re-index because vector dimensions differ.'|t('spectacles') }}">
+{# Posted, not linked: this screen is itself a form, and a GET link let any page an admin visited
+   queue a paid re-analysis of every image. Looked up by data attribute, which Craft's settings
+   namespacing leaves alone. #}
+<button type="button" class="btn" data-spectacles-reindex data-confirm-message="{{ 'Queue analysis for every image in the configured volumes? Switching providers requires a re-index because vector dimensions differ.'|t('spectacles') }}">
     {{ 'Re-index all images'|t('spectacles') }}
-</a>
+</button>
+<script>
+(function () {
+    var button = document.querySelector('[data-spectacles-reindex]');
+    if (!button) return;
+    button.addEventListener('click', function () {
+        if (!confirm(button.getAttribute('data-confirm-message'))) return;
+        button.classList.add('loading');
+        Craft.sendActionRequest('POST', 'spectacles/admin/reindex')
+            .then(function (response) { Craft.cp.displayNotice(response.data.message); })
+            .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || {{ 'Couldn’t queue the re-index.'|t('spectacles')|json_encode|raw }}); })
+            .finally(function () { button.classList.remove('loading'); });
+    });
+})();
+</script>
 
 <script>
 (function () {

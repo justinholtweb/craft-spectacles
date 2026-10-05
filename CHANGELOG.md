@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.1.0 - 2026-10-05
+
+> {warning} Public search is now off by default and only searches the volumes you mark public — none, until you choose them. If your site uses `/spectacles/search` or `/spectacles/similar`, open **Settings → Plugins → Spectacles**, tick **Public volumes** and save, or those endpoints return nothing. Re-indexing now needs the new **Re-index every image** permission (admins have it).
+
+### Security
+- **Public search returned images from every indexed volume.** The anonymous `/spectacles/search` and `/spectacles/similar/<id>` endpoints were on by default and searched everything Spectacles had analysed, so any visitor got titles, filenames, URLs and AI-generated descriptions from internal volumes — and `/similar` took any asset ID as its source. Public search now only returns, and only accepts as a source, images in the new **Public volumes** setting, which is empty by default; analysing a volume for the control panel no longer publishes it. `allowPublicSearch` defaults to off.
+- **Re-index and Analyze now could be triggered by any page an admin visited.** Both were GET links, so an `<img src>` elsewhere queued a paid re-analysis of every image. Both are POST-only now, posted by their buttons; re-indexing needs its own **Re-index every image** permission rather than queue-manager access, and analysing an asset needs permission to save it rather than view it.
+- **The public endpoints' rate limit could be reset by any client.** It keyed on `getUserIP()`, which reads `X-Forwarded-For` unasked, and read-then-wrote without a lock. It now keys on the connecting address (the forwarded one only when `trustedHosts` names your proxies), counts under a lock, and sits under a site-wide ceiling. The setting means what it did.
+- The asset sidebar's similar images now only include assets the user can view.
+
 ## 5.0.2 - 2026-08-19
 
 ### Fixed

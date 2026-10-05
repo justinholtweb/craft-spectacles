@@ -64,7 +64,21 @@ class Settings extends Model
     public int $defaultResultLimit = 12;
     public float $minSimilarityScore = 0.5;
     public int $maxVisitorUploadKb = 8192;
-    public bool $allowPublicSearch = true;
+    /**
+     * Whether the anonymous `/spectacles/search` and `/spectacles/similar/<id>` endpoints answer.
+     * Off by default since 5.1.0: each call spends on a paid API and reads the index.
+     */
+    public bool $allowPublicSearch = false;
+
+    /**
+     * The volumes whose images the public endpoints may return — and may be asked about. Empty
+     * means none. Kept apart from `volumeUids` (what gets analysed) because analysing an internal
+     * volume for the control panel is not the same as publishing it: before 5.1.0 the public
+     * endpoints returned titles, filenames, URLs and AI descriptions from every indexed volume.
+     *
+     * @var string[]
+     */
+    public array $publicVolumeUids = [];
     public int $publicSearchRateLimit = 10;
     public int $publicSearchRateWindow = 60;
 
@@ -88,8 +102,17 @@ class Settings extends Model
             [['defaultResultLimit', 'maxVisitorUploadKb', 'publicSearchRateWindow'], 'integer', 'min' => 1],
             [['publicSearchRateLimit'], 'integer', 'min' => 0],
             [['minSimilarityScore'], 'number', 'min' => 0, 'max' => 1],
-            [['volumeUids'], 'each', 'rule' => ['string']],
+            [['volumeUids', 'publicVolumeUids'], 'each', 'rule' => ['string']],
         ];
+    }
+
+    /** @return int[] the public volumes' ids, for the public endpoints. */
+    public function getPublicVolumeIds(): array
+    {
+        return array_values(array_filter(array_map(
+            fn(string $uid): ?int => \Craft::$app->getVolumes()->getVolumeByUid($uid)?->id,
+            $this->publicVolumeUids,
+        )));
     }
 
     public function getOpenAiApiKey(): ?string
