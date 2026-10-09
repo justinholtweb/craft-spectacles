@@ -53,13 +53,60 @@ Other settings:
 - `publicVolumeUids` — the **only** volumes public search returns images from or may be asked about. Empty means none: analysing a volume (`volumeUids`) does not publish it.
 - `maxVisitorUploadKb`, `publicSearchRateLimit` / `publicSearchRateWindow` — per-visitor limits on the public endpoints (by connecting address; `X-Forwarded-For` only counts once `trustedHosts` names your proxies), under a site-wide ceiling of 20×.
 
-> **Switching providers?** Different models produce vectors of different dimensions, so Spectacles only compares vectors of matching shape. After switching, click **Re-index all images** to regenerate embeddings.
+> **Switching providers?** Different models produce vectors of different dimensions, so Spectacles only compares vectors of matching shape. After switching, run `php craft spectacles/reindex` to see how many images were embedded with the old model, then `php craft spectacles/reindex --dry-run=0` to re-analyse just those (or click **Re-index all images** to redo everything).
 
 ## Usage
 
 ### Re-index existing assets
 
-From the settings screen, click **Re-index all images** to queue a job for every image in the configured volumes. Progress is visible in the queue. Re-indexing spends on your providers for every image, so it needs the **Re-index every image** permission; analysing a single asset needs permission to save it.
+From the settings screen, click **Re-index all images** to queue a job for every image in the configured volumes, or use the [console commands](#console) to index only what's missing, cap a run, or see the cost first. Progress is visible in the queue. Re-indexing spends on your providers for every image, so it needs the **Re-index every image** permission; analysing a single asset needs permission to save it.
+
+### Console
+
+Every re-index option the settings screen has, plus the ones a deploy script needs: a volume filter, a cap per run, and a dry run that prints what a run would cost before it spends anything. The commands queue analysis jobs — run the queue as usual.
+
+```bash
+php craft spectacles/status                              # analysed / unanalysed / other-model counts per volume
+php craft spectacles/index --missing-only --dry-run      # count, and estimate provider calls
+php craft spectacles/index --missing-only --limit=500    # queue up to 500 never-analysed images
+php craft spectacles/index --volume=photos,products      # queue every image in those volumes
+php craft spectacles/reindex                             # after a provider switch: count the other-model images (dry run)
+php craft spectacles/reindex --dry-run=0                 # …and queue them
+```
+
+| Command | Options | What it picks |
+|---|---|---|
+| `spectacles/index` | `--volume`, `--missing-only`, `--limit`, `--dry-run` (`-n`) | Every image in the analysed volumes; with `--missing-only`, those with no vector yet (never analysed, or the embedding call failed). |
+| `spectacles/reindex` | `--volume`, `--limit`, `--dry-run` (**on by default**) | Images whose vector came from a different embedding model than the one configured now. Images already on the current model are left alone. |
+| `spectacles/status` | — | Prints the counts; queues nothing. |
+
+The estimate is two provider calls per image: one vision, one embedding. `--volume` takes handles of volumes Spectacles analyses (the **Volumes** setting, or every volume when that's empty); any other handle is refused.
+
+### GraphQL
+
+Two read-only queries, for headless front ends:
+
+```graphql
+{
+  spectaclesSimilar(assetId: 412, limit: 8) {
+    score
+    description
+    tags
+    asset { id url title }
+  }
+  spectaclesSearch(text: "foggy mountain at sunrise", limit: 12) {
+    score
+    asset { id url }
+  }
+}
+```
+
+Both are off until a schema allows them. Under **GraphQL → Schemas → Spectacles**:
+
+- **Find similar images in the “…” volume** — one per volume, the GraphQL counterpart of **Public volumes**. A schema only finds, and may only ask about, images in the volumes it has ticked here *and* can query as assets (the volume's own **Query for assets** permission). An image anywhere else gives an empty list, so its existence isn't confirmed.
+- **Search those volumes by text** — adds `spectaclesSearch`. Each query is one paid call to the embedding provider, so it's a separate permission, it shares the public endpoints' rate limit (`publicSearchRateLimit` / `publicSearchRateWindow`, in a bucket of its own), and queries are capped at 1,000 characters. With Craft's GraphQL caching on, a repeated query is answered from the cache without another call.
+
+`spectaclesSimilar` makes no provider call: it compares stored vectors. `limit` is clamped to 1–100 and defaults to `defaultResultLimit`. The public-search settings (`allowPublicSearch`, `publicVolumeUids`) don't apply to GraphQL — the schema is the switch.
 
 ### Twig
 
@@ -165,6 +212,7 @@ There are two, split by what they need to run:
 |---|---|---|---|
 | `unit` | PHPUnit | `tests/unit` | Pure logic — cosine similarity, provider response normalization, JSON extraction, pgvector literal formatting. No Craft, no database. |
 | `integration` | Codeception + Craft's test framework | `tests/integration` | Anything needing a booted Craft: settings validation, the ActiveRecord and its JSON columns, the similarity/metadata/vision services, the Twig variable, event wiring, and the public endpoint's rate limiter. |
+| `harness` | plain PHP | `tests/harness` | The console commands and the GraphQL queries, run against the shared plugin-testing site (`php /var/www/craft-spectacles/tests/harness/console.php`, `…/graphql.php`). Providers are stubbed; nothing is queued for real. |
 
 Without DDEV:
 

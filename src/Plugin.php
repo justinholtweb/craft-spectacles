@@ -8,16 +8,23 @@ use craft\base\Plugin as BasePlugin;
 use craft\elements\Asset;
 use craft\events\DefineHtmlEvent;
 use craft\events\ModelEvent;
+use craft\events\RegisterGqlQueriesEvent;
+use craft\events\RegisterGqlSchemaComponentsEvent;
+use craft\events\RegisterGqlTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\events\ReplaceAssetEvent;
 use craft\helpers\ElementHelper;
 use craft\services\Assets;
+use craft\services\Gql;
 use craft\services\UserPermissions;
 use craft\web\UrlManager;
 use craft\web\twig\variables\CraftVariable;
+use justinholtweb\spectacles\gql\queries\SpectaclesQueries;
+use justinholtweb\spectacles\gql\types\ResultType;
 use justinholtweb\spectacles\jobs\AnalyzeAsset;
 use justinholtweb\spectacles\models\Settings;
+use justinholtweb\spectacles\services\Indexer;
 use justinholtweb\spectacles\services\Metadata;
 use justinholtweb\spectacles\services\Similarity;
 use justinholtweb\spectacles\services\Vision;
@@ -26,6 +33,7 @@ use Throwable;
 use yii\base\Event;
 
 /**
+ * @property-read Indexer $indexer
  * @property-read Metadata $metadata
  * @property-read Similarity $similarity
  * @property-read Vision $vision
@@ -44,6 +52,7 @@ class Plugin extends BasePlugin
     {
         return [
             'components' => [
+                'indexer' => Indexer::class,
                 'metadata' => Metadata::class,
                 'similarity' => Similarity::class,
                 'vision' => Vision::class,
@@ -141,6 +150,8 @@ class Plugin extends BasePlugin
             }
         );
 
+        $this->registerGraphQl();
+
         Event::on(
             Asset::class,
             Element::EVENT_DEFINE_SIDEBAR_HTML,
@@ -156,6 +167,48 @@ class Plugin extends BasePlugin
                 } catch (Throwable $e) {
                     Craft::warning('Spectacles sidebar render failed: ' . $e->getMessage(), __METHOD__);
                 }
+            }
+        );
+    }
+
+    /**
+     * `spectaclesSimilar` and `spectaclesSearch`, behind one schema component per volume (the
+     * GraphQL counterpart of **Public volumes**) plus one for text search, which spends on the
+     * embedding provider per query. See {@see SpectaclesQueries}.
+     */
+    private function registerGraphQl(): void
+    {
+        Event::on(
+            Gql::class,
+            Gql::EVENT_REGISTER_GQL_TYPES,
+            function (RegisterGqlTypesEvent $event): void {
+                $event->types[] = ResultType::class;
+            }
+        );
+
+        Event::on(
+            Gql::class,
+            Gql::EVENT_REGISTER_GQL_QUERIES,
+            function (RegisterGqlQueriesEvent $event): void {
+                $event->queries = array_merge($event->queries, SpectaclesQueries::getQueries());
+            }
+        );
+
+        Event::on(
+            Gql::class,
+            Gql::EVENT_REGISTER_GQL_SCHEMA_COMPONENTS,
+            function (RegisterGqlSchemaComponentsEvent $event): void {
+                $components = [];
+                foreach (Craft::$app->getVolumes()->getAllVolumes() as $volume) {
+                    $components[SpectaclesQueries::VOLUME_COMPONENT . ".{$volume->uid}:read"] = [
+                        'label' => Craft::t('spectacles', 'Find similar images in the “{name}” volume', ['name' => $volume->name]),
+                    ];
+                }
+                $components[SpectaclesQueries::TEXT_SEARCH_COMPONENT . ':read'] = [
+                    'label' => Craft::t('spectacles', 'Search those volumes by text (one paid embedding call per query)'),
+                ];
+
+                $event->queries[Craft::t('spectacles', 'Spectacles')] = $components;
             }
         );
     }

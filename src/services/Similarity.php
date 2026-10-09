@@ -63,11 +63,16 @@ class Similarity extends Component
     /**
      * @return array<int, array{asset: Asset, score: float, metadata: ImageMetadata}>
      */
-    public function similarToText(string $text, ?int $limit = null): array
+    public function similarToText(string $text, ?int $limit = null, ?array $volumeIds = null): array
     {
+        // Nothing to search is no reason to spend on an embedding call.
+        if ($volumeIds === []) {
+            return [];
+        }
+
         $vision = Plugin::getInstance()->vision;
         $result = $vision->embedText($text);
-        return $this->similarToVector($result->vector, $limit);
+        return $this->similarToVector($result->vector, $limit, volumeIds: $volumeIds);
     }
 
     /**

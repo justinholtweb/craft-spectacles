@@ -15,3 +15,5 @@ parameters:
             - tests/_support/IntegrationTester.php
             # Craft's compiled behaviors, written at test runtime.
             - tests/_craft/storage
+            # Plain scripts run inside the plugin-testing harness, against its Craft install.
+            - tests/harness

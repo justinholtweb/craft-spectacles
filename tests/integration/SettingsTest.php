@@ -142,4 +142,19 @@ class SettingsTest extends Unit
             unset($_SERVER['SPECTACLES_TEST_BOOLISH']);
         }
     }
+
+    public function testEmbeddingModelFollowsTheEmbeddingProvider(): void
+    {
+        $settings = new Settings([
+            'openaiEmbeddingModel' => 'o',
+            'geminiEmbeddingModel' => 'g',
+            'voyageEmbeddingModel' => 'v',
+            'ollamaEmbeddingModel' => 'l',
+        ]);
+
+        foreach ([Settings::PROVIDER_OPENAI => 'o', Settings::PROVIDER_GEMINI => 'g', Settings::PROVIDER_VOYAGE => 'v', Settings::PROVIDER_OLLAMA => 'l'] as $provider => $model) {
+            $settings->embeddingProvider = $provider;
+            $this->assertSame($model, $settings->getEmbeddingModel(), $provider);
+        }
+    }
 }

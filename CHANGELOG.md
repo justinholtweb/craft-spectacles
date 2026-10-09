@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Console commands. `spectacles/index` queues analysis for the analysed volumes, with `--volume`, `--missing-only` (no vector yet), `--limit` and `--dry-run`, which prints the image count and the provider calls it would cost. `spectacles/reindex` re-analyses only the images embedded by a different model than the one configured now — what a provider switch leaves behind — and is a dry run unless given `--dry-run=0`. `spectacles/status` prints analysed, unanalysed and other-model counts per volume.
+- GraphQL: `spectaclesSimilar(assetId, limit)` and `spectaclesSearch(text, limit)`, returning the asset with its score, description and tags. A schema gets one **Find similar images** permission per volume and only finds, or may ask about, images in volumes it has ticked and can query as assets. Text search, which makes one paid embedding call per query, has a permission of its own and shares the public endpoints' rate limit.
+
 ## 5.1.0 - 2026-10-05
 
 > {warning} Public search is now off by default and only searches the volumes you mark public — none, until you choose them. If your site uses `/spectacles/search` or `/spectacles/similar`, open **Settings → Plugins → Spectacles**, tick **Public volumes** and save, or those endpoints return nothing. Re-indexing now needs the new **Re-index every image** permission (admins have it).

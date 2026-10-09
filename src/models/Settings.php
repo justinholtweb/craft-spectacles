@@ -115,6 +115,21 @@ class Settings extends Model
         )));
     }
 
+    /**
+     * The model the configured embedding provider writes vectors with — what an analysed image's
+     * `embeddingModel` must equal for its vector to be comparable with new ones. A record with any
+     * other model was made before a provider or model switch and needs re-indexing.
+     */
+    public function getEmbeddingModel(): string
+    {
+        return match ($this->embeddingProvider) {
+            self::PROVIDER_GEMINI => $this->geminiEmbeddingModel,
+            self::PROVIDER_VOYAGE => $this->voyageEmbeddingModel,
+            self::PROVIDER_OLLAMA => $this->ollamaEmbeddingModel,
+            default => $this->openaiEmbeddingModel,
+        };
+    }
+
     public function getOpenAiApiKey(): ?string
     {
         return $this->parseEnv($this->openaiApiKey);
